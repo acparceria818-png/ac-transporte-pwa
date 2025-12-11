@@ -1,0 +1,12 @@
+{
+  "name": "AC Transporte",
+  "short_name": "AC Transporte",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#b00000",
+  "icons": [
+    { "src": "logo.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "logo.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}

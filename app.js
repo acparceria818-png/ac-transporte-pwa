@@ -1132,4 +1132,446 @@ async function getAdminStats() {
       const activeRoutes = new Set();
       routesSnapshot.forEach(doc => {
         const route = doc.data().route;
-       
+        if (route) activeRoutes.add(route);
+      });
+      
+      stats.activeRoutes = activeRoutes.size;
+      
+      // Contar emergências pendentes
+      const emergenciesSnapshot = await db.collection('emergencies')
+        .where('status', '==', 'pending')
+        .get();
+      
+      stats.pendingEmergencies = emergenciesSnapshot.size;
+      
+      // Contar feedbacks não lidos
+      const feedbacksSnapshot = await db.collection('feedbacks')
+        .where('read', '==', false)
+        .get();
+      
+      stats.newFeedbacks = feedbacksSnapshot.size;
+    } else {
+      // Dados simulados para desenvolvimento
+      stats = {
+        activeDrivers: 6,
+        activeRoutes: 4,
+        pendingEmergencies: 0,
+        newFeedbacks: 3
+      };
+    }
+    
+    return stats;
+  } catch (error) {
+    console.error('Erro ao obter estatísticas:', error);
+    return {
+      activeDrivers: 0,
+      activeRoutes: 0,
+      pendingEmergencies: 0,
+      newFeedbacks: 0
+    };
+  }
+}
+
+// =============================================
+// FUNÇÕES DE CONTROLE DE VEÍCULO
+// =============================================
+
+/**
+ * Registrar entrada/saída
+ */
+async function recordVehicleControl(type) {
+  try {
+    const userProfile = localStorage.getItem('user_profile');
+    const userId = localStorage.getItem('driver_matricula');
+    
+    if (userProfile !== 'motorista' || !userId) {
+      throw new Error('Apenas motoristas podem registrar controles');
+    }
+    
+    const now = new Date();
+    const controlData = {
+      userId: userId,
+      type: type, // 'entry' ou 'exit'
+      timestamp: now.toISOString(),
+      date: now.toLocaleDateString('pt-BR'),
+      time: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      location: AppState.currentLocation,
+      route: localStorage.getItem('selected_route') || null,
+      synced: false
+    };
+    
+    // Salvar localmente primeiro
+    const controls = JSON.parse(localStorage.getItem('vehicle_controls') || '[]');
+    controls.push(controlData);
+    localStorage.setItem('vehicle_controls', JSON.stringify(controls));
+    
+    // Atualizar último controle
+    localStorage.setItem('last_control', `${type === 'entry' ? 'Entrada' : 'Saída'} ${controlData.time}`);
+    
+    // Tentar sincronizar com Firebase
+    if (firebaseInitialized) {
+      await db.collection('vehicle_controls').add({
+        ...controlData,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        synced: true
+      });
+      
+      // Remover do localStorage após sincronização bem-sucedida
+      const updatedControls = controls.filter(c => c.timestamp !== controlData.timestamp);
+      localStorage.setItem('vehicle_controls', JSON.stringify(updatedControls));
+    }
+    
+    // Mostrar confirmação
+    const message = type === 'entry' 
+      ? `Entrada registrada às ${controlData.time}`
+      : `Saída registrada às ${controlData.time}`;
+    
+    showNotification('success', message);
+    
+    // Atualizar UI
+    updateControlHistory();
+    
+    return controlData;
+  } catch (error) {
+    console.error('Erro ao registrar controle:', error);
+    showNotification('error', 'Erro ao registrar. Os dados foram salvos offline.');
+    throw error;
+  }
+}
+
+/**
+ * Atualizar histórico de controles
+ */
+function updateControlHistory() {
+  const controls = JSON.parse(localStorage.getItem('vehicle_controls') || '[]');
+  const historyElement = document.getElementById('controlHistory');
+  
+  if (!historyElement) return;
+  
+  if (controls.length === 0) {
+    historyElement.innerHTML = '<p class="empty-history">Nenhum registro encontrado</p>';
+    return;
+  }
+  
+  // Ordenar por data mais recente
+  controls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  
+  // Limitar aos últimos 10 registros
+  const recentControls = controls.slice(0, 10);
+  
+  historyElement.innerHTML = recentControls.map(control => `
+    <div class="control-record">
+      <div class="control-type ${control.type}">
+        <i class="fas fa-${control.type === 'entry' ? 'sign-in-alt' : 'sign-out-alt'}"></i>
+        <span>${control.type === 'entry' ? 'Entrada' : 'Saída'}</span>
+      </div>
+      <div class="control-details">
+        <span>${control.date} às ${control.time}</span>
+        ${control.route ? `<small>Rota: ${control.route}</small>` : ''}
+      </div>
+      <div class="control-status ${control.synced ? 'synced' : 'pending'}">
+        <i class="fas fa-${control.synced ? 'cloud' : 'wifi-slash'}"></i>
+      </div>
+    </div>
+  `).join('');
+}
+
+// =============================================
+// FUNÇÕES DE AVISOS
+// =============================================
+
+/**
+ * Carregar avisos
+ */
+async function loadNotices(audience = null) {
+  try {
+    let notices = [];
+    
+    if (firebaseInitialized) {
+      let query = db.collection('notices')
+        .where('active', '==', true);
+      
+      if (audience) {
+        query = query.where('audience', 'array-contains', audience);
+      }
+      
+      const snapshot = await query.orderBy('createdAt', 'desc').limit(20).get();
+      notices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } else {
+      // Carregar avisos padrão
+      notices = getDefaultNotices(audience);
+    }
+    
+    // Marcar avisos não lidos
+    const readNotices = JSON.parse(localStorage.getItem('read_notices') || '[]');
+    notices.forEach(notice => {
+      notice.read = readNotices.includes(notice.id);
+    });
+    
+    return notices;
+  } catch (error) {
+    console.error('Erro ao carregar avisos:', error);
+    return getDefaultNotices(audience);
+  }
+}
+
+/**
+ * Obter avisos padrão
+ */
+function getDefaultNotices(audience = null) {
+  const allNotices = [
+    {
+      id: '1',
+      title: 'Manutenção Rota 02',
+      content: 'A Rota 02 está com desvio devido a obras na Av. Principal. Use rota alternativa.',
+      type: 'urgent',
+      audience: ['motorista', 'passageiro'],
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      active: true
+    },
+    {
+      id: '2',
+      title: 'Nova Escala Disponível',
+      content: 'A escala de setembro já está disponível na área do motorista.',
+      type: 'info',
+      audience: ['motorista'],
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      active: true
+    },
+    {
+      id: '3',
+      title: 'Horários Alterados',
+      content: 'A partir de segunda-feira, os horários das rotas 01 e 03 serão ajustados.',
+      type: 'warning',
+      audience: ['passageiro'],
+      createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      active: true
+    }
+  ];
+  
+  if (!audience) return allNotices;
+  
+  return allNotices.filter(notice => 
+    notice.audience.includes(audience) && notice.active
+  );
+}
+
+/**
+ * Marcar aviso como lido
+ */
+function markNoticeAsRead(noticeId) {
+  const readNotices = JSON.parse(localStorage.getItem('read_notices') || '[]');
+  if (!readNotices.includes(noticeId)) {
+    readNotices.push(noticeId);
+    localStorage.setItem('read_notices', JSON.stringify(readNotices));
+  }
+}
+
+/**
+ * Criar novo aviso (admin)
+ */
+async function createNotice(noticeData) {
+  try {
+    if (!firebaseInitialized) {
+      throw new Error('Firebase não configurado');
+    }
+    
+    const notice = {
+      ...noticeData,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      active: true,
+      readBy: []
+    };
+    
+    await db.collection('notices').add(notice);
+    
+    // Enviar notificação push para os destinatários
+    sendNoticeNotification(notice);
+    
+    showNotification('success', 'Aviso publicado com sucesso!');
+    return notice;
+  } catch (error) {
+    console.error('Erro ao criar aviso:', error);
+    showNotification('error', 'Erro ao publicar aviso.');
+    throw error;
+  }
+}
+
+/**
+ * Enviar notificação do aviso
+ */
+function sendNoticeNotification(notice) {
+  const audienceText = notice.audience.includes('motorista') && notice.audience.includes('passageiro')
+    ? 'Todos os usuários'
+    : notice.audience.includes('motorista')
+    ? 'Motoristas'
+    : 'Passageiros';
+  
+  sendPushNotification(`📢 ${notice.title}`, notice.content, {
+    tag: `notice-${notice.id}`,
+    data: { noticeId: notice.id }
+  });
+}
+
+// =============================================
+// FUNÇÕES DE EXPORTAÇÃO
+// =============================================
+
+/**
+ * Exportar dados para Excel
+ */
+function exportToExcel(data, filename = 'dados.xlsx') {
+  // Implementação simplificada - em produção, use uma biblioteca como SheetJS
+  let csv = '';
+  
+  // Cabeçalhos
+  const headers = Object.keys(data[0] || {});
+  csv += headers.join(';') + '\n';
+  
+  // Dados
+  data.forEach(item => {
+    const row = headers.map(header => {
+      const value = item[header];
+      if (typeof value === 'object') {
+        return JSON.stringify(value);
+      }
+      return value || '';
+    });
+    csv += row.join(';') + '\n';
+  });
+  
+  // Criar e baixar arquivo
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if (navigator.msSaveBlob) {
+    // Para IE
+    navigator.msSaveBlob(blob, filename);
+  } else {
+    // Para outros navegadores
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+  
+  showNotification('success', `Arquivo ${filename} baixado com sucesso!`);
+}
+
+// =============================================
+// EVENT LISTENERS GLOBAIS
+// =============================================
+
+// Detectar mudança de conexão
+window.addEventListener('online', () => {
+  showNotification('success', 'Conexão restabelecida. Sincronizando dados...');
+  syncOfflineData();
+});
+
+window.addEventListener('offline', () => {
+  showNotification('warning', 'Você está offline. Os dados serão salvos localmente.');
+});
+
+// Fechar modais com ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeAllModals();
+  }
+});
+
+// Fechar modal ao clicar fora
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal-back')) {
+    closeModal(e.target.id);
+  }
+});
+
+// =============================================
+// INICIALIZAÇÃO DA APLICAÇÃO
+// =============================================
+
+// Quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('AC Transporte - Sistema inicializado');
+  
+  // Inicializar tema escuro
+  initDarkMode();
+  
+  // Verificar Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(registration => {
+          console.log('ServiceWorker registrado com sucesso:', registration.scope);
+        })
+        .catch(error => {
+          console.log('ServiceWorker falhou:', error);
+        });
+    });
+  }
+  
+  // Configurar Firebase se disponível
+  if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+    firebaseInitialized = true;
+    console.log('Firebase configurado');
+    
+    // Configurar auth state listener
+    firebase.auth().onAuthStateChanged((user) => {
+      if (user) {
+        AppState.currentUser = user;
+        console.log('Usuário autenticado:', user.uid);
+      } else {
+        console.log('Nenhum usuário autenticado');
+      }
+    });
+  }
+  
+  // Detectar página atual e inicializar funcionalidades específicas
+  const path = window.location.pathname;
+  const page = path.split('/').pop();
+  
+  switch(page) {
+    case 'motorista.html':
+      initDriverPage();
+      break;
+    case 'passageiro.html':
+      initPassengerPage();
+      break;
+    case 'admin.html':
+      initAdminPage();
+      break;
+    case 'index.html':
+      // Página inicial já inicializada
+      break;
+    default:
+      console.log('Página não reconhecida:', page);
+  }
+});
+
+// =============================================
+// FUNÇÕES GLOBAIS DISPONÍVEIS
+// =============================================
+
+// Tornar funções importantes disponíveis globalmente
+window.AppState = AppState;
+window.showNotification = showNotification;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.closeAllModals = closeAllModals;
+window.getCurrentLocation = getCurrentLocation;
+window.startLocationSharing = startLocationSharing;
+window.stopLocationSharing = stopLocationSharing;
+window.reportEmergency = reportEmergency;
+window.submitFeedback = submitFeedback;
+window.recordVehicleControl = recordVehicleControl;
+window.updateControlHistory = updateControlHistory;
+window.loadNotices = loadNotices;
+window.markNoticeAsRead = markNoticeAsRead;
+window.exportToExcel = exportToExcel;
+window.syncOfflineData = syncOfflineData;

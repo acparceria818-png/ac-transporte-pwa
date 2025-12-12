@@ -1,1 +1,792 @@
-
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Área do Motorista - AC Transporte</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/logo.jpg">
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="firebase-config.js"></script>
+  
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+</head>
+<body class="driver-page">
+  <!-- WhatsApp Float -->
+  <a href="https://wa.me/559392059914?text=Olá,%20preciso%20de%20suporte%20no%20app%20AC%20Transporte" 
+     target="_blank" class="whatsapp-float">
+    <i class="fab fa-whatsapp"></i>
+  </a>
+  
+  <!-- Botão de Emergência -->
+  <button class="emergency-btn" onclick="openEmergencyModal()">
+    <i class="fas fa-exclamation-triangle"></i>
+  </button>
+  
+  <!-- Header -->
+  <header class="driver-header">
+    <div class="container">
+      <div class="header-content">
+        <button class="back-btn" onclick="goBack()">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <div class="driver-info">
+          <img src="assets/driver-avatar.png" alt="Motorista" class="driver-avatar-small">
+          <div>
+            <h2>Motorista</h2>
+            <p id="driverMatricula">Matrícula: <span id="matriculaDisplay">---</span></p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="darkToggle" title="Alternar tema">
+            <i class="fas fa-moon"></i>
+          </button>
+          <button class="icon-btn" onclick="logout()" title="Sair">
+            <i class="fas fa-sign-out-alt"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Clima Atual -->
+  <section id="weatherSection" class="container" style="display: none;">
+    <div class="weather-card">
+      <div class="weather-info">
+        <h3><i class="fas fa-cloud-sun"></i> Clima Atual</h3>
+        <div class="weather-temp" id="currentTemp">--°C</div>
+        <div class="weather-desc" id="weatherDesc">Carregando...</div>
+        <small id="weatherLocation">Localização atual</small>
+      </div>
+      <div class="weather-icon" id="weatherIcon">
+        <i class="fas fa-sun"></i>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Menu Principal Motorista -->
+  <main class="container">
+    <div class="driver-dashboard">
+      <!-- Controle de Veículo -->
+      <div class="dashboard-card" onclick="openControlForm()" data-animation="ripple">
+        <div class="card-icon" style="background: #4CAF50;">
+          <i class="fas fa-clipboard-check"></i>
+        </div>
+        <div class="card-content">
+          <h3>Controle de Veículo</h3>
+          <p>Preencha entrada e saída (obrigatório 2× ao dia)</p>
+          <div class="card-status">
+            <span id="lastControlTime">Último: Não registrado</span>
+          </div>
+        </div>
+        <div class="card-arrow">
+          <i class="fas fa-chevron-right"></i>
+        </div>
+      </div>
+      
+      <!-- Avisos e Comunicados -->
+      <div class="dashboard-card" onclick="openNotices()" data-animation="ripple">
+        <div class="card-icon" style="background: #FF9800;">
+          <i class="fas fa-bullhorn"></i>
+        </div>
+        <div class="card-content">
+          <h3>Avisos e Comunicados</h3>
+          <p>Informações importantes da empresa</p>
+          <div class="card-badge" id="noticeBadge">0 novos</div>
+        </div>
+        <div class="card-arrow">
+          <i class="fas fa-chevron-right"></i>
+        </div>
+      </div>
+      
+      <!-- Selecionar Rota -->
+      <div class="dashboard-card" onclick="openRouteSelection()" data-animation="ripple">
+        <div class="card-icon" style="background: #2196F3;">
+          <i class="fas fa-route"></i>
+        </div>
+        <div class="card-content">
+          <h3>Selecionar Rota</h3>
+          <p>Escolha sua rota do dia e compartilhe localização</p>
+          <div class="card-status" id="currentRoute">Nenhuma rota selecionada</div>
+        </div>
+        <div class="card-arrow">
+          <i class="fas fa-chevron-right"></i>
+        </div>
+      </div>
+      
+      <!-- Ver Minha Escala -->
+      <div class="dashboard-card" onclick="openSchedule()" data-animation="ripple">
+        <div class="card-icon" style="background: #9C27B0;">
+          <i class="fas fa-calendar-alt"></i>
+        </div>
+        <div class="card-content">
+          <h3>Minha Escala</h3>
+          <p>Confira seus horários e dias de trabalho</p>
+          <div class="card-status" id="nextSchedule">Próximo: --/--</div>
+        </div>
+        <div class="card-arrow">
+          <i class="fas fa-chevron-right"></i>
+        </div>
+      </div>
+      
+      <!-- Feedback e Sugestões -->
+      <div class="dashboard-card" onclick="openFeedback()" data-animation="ripple">
+        <div class="card-icon" style="background: #607D8B;">
+          <i class="fas fa-comment-dots"></i>
+        </div>
+        <div class="card-content">
+          <h3>Feedback</h3>
+          <p>Envie melhorias, reclamações ou sugestões</p>
+          <div class="card-badge" id="feedbackBadge"></div>
+        </div>
+        <div class="card-arrow">
+          <i class="fas fa-chevron-right"></i>
+        </div>
+      </div>
+      
+      <!-- Suporte -->
+      <div class="dashboard-card" onclick="openSupport()" data-animation="ripple">
+        <div class="card-icon" style="background: #795548;">
+          <i class="fas fa-headset"></i>
+        </div>
+        <div class="card-content">
+          <h3>Suporte</h3>
+          <p>Entre em contato para dúvidas ou problemas</p>
+          <div class="card-status">WhatsApp: (93) 9205-9914</div>
+        </div>
+        <div class="card-arrow">
+          <i class="fas fa-chevron-right"></i>
+        </div>
+      </div>
+      
+      <!-- Localização -->
+      <div class="dashboard-card location-card" onclick="toggleLocationSharing()" data-animation="ripple">
+        <div class="card-icon" id="locationIcon" style="background: #00BCD4;">
+          <i class="fas fa-map-marker-alt"></i>
+        </div>
+        <div class="card-content">
+          <h3>Localização em Tempo Real</h3>
+          <p id="locationStatus">Compartilhamento: <span id="sharingStatus">Desativado</span></p>
+          <div class="location-indicator">
+            <span class="indicator" id="locationIndicator"></span>
+            <span id="lastUpdate">Última atualização: --:--</span>
+          </div>
+        </div>
+        <div class="card-switch">
+          <label class="switch">
+            <input type="checkbox" id="locationToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Modal de Controle de Veículo -->
+  <div id="controlModal" class="modal-back" style="display: none;">
+    <div class="modal">
+      <button class="close" onclick="closeModal('controlModal')">✕</button>
+      <h3><i class="fas fa-clipboard-check"></i> Controle de Veículo</h3>
+      
+      <div class="control-options">
+        <button class="control-btn entry" onclick="recordEntry()">
+          <i class="fas fa-sign-in-alt"></i>
+          <span>Registrar Entrada</span>
+          <small>Ao iniciar a jornada</small>
+        </button>
+        
+        <button class="control-btn exit" onclick="recordExit()">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Registrar Saída</span>
+          <small>Ao finalizar o trabalho</small>
+        </button>
+      </div>
+      
+      <div class="control-history">
+        <h4>Últimos Registros</h4>
+        <div id="controlHistory">
+          <p class="empty-history">Nenhum registro encontrado</p>
+        </div>
+      </div>
+      
+      <div class="control-info">
+        <p><i class="fas fa-exclamation-circle"></i> <strong>Importante:</strong> O preenchimento é obrigatório 2× ao dia.</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal de Avisos -->
+  <div id="noticesModal" class="modal-back" style="display: none;">
+    <div class="modal notices-modal">
+      <button class="close" onclick="closeModal('noticesModal')">✕</button>
+      <h3><i class="fas fa-bullhorn"></i> Avisos e Comunicados</h3>
+      
+      <div class="notices-filter">
+        <button class="filter-btn active" onclick="filterNotices('all')">Todos</button>
+        <button class="filter-btn" onclick="filterNotices('urgent')">Urgentes</button>
+        <button class="filter-btn" onclick="filterNotices('today')">Hoje</button>
+      </div>
+      
+      <div class="notices-list" id="noticesList">
+        <div class="notice-item urgent">
+          <div class="notice-header">
+            <span class="notice-badge urgent">URGENTE</span>
+            <span class="notice-date">Hoje, 08:30</span>
+          </div>
+          <h4>Manutenção Rota 02</h4>
+          <p>A Rota 02 está com desvio devido a obras na Av. Principal. Use rota alternativa.</p>
+        </div>
+        
+        <div class="notice-item">
+          <div class="notice-header">
+            <span class="notice-badge info">INFORMAÇÃO</span>
+            <span class="notice-date">Ontem, 16:45</span>
+          </div>
+          <h4>Nova Escala Disponível</h4>
+          <p>A escala de setembro já está disponível na área do motorista.</p>
+        </div>
+      </div>
+      
+      <div class="notices-empty" id="noNotices" style="display: none;">
+        <i class="fas fa-inbox"></i>
+        <p>Nenhum aviso no momento</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal de Seleção de Rota -->
+  <div id="routeModal" class="modal-back" style="display: none;">
+    <div class="modal route-modal">
+      <button class="close" onclick="closeModal('routeModal')">✕</button>
+      <h3><i class="fas fa-route"></i> Selecionar Rota</h3>
+      
+      <div class="route-actions">
+        <button class="route-action-btn" onclick="shareMyLocation()">
+          <i class="fas fa-share-alt"></i>
+          <span>Compartilhar Localização</span>
+        </button>
+        <button class="route-action-btn" onclick="stopSharingLocation()">
+          <i class="fas fa-stop-circle"></i>
+          <span>Parar Compartilhamento</span>
+        </button>
+      </div>
+      
+      <div class="routes-grid">
+        <!-- Rota ADM 01 -->
+        <div class="route-card" onclick="selectRoute('adm-01')">
+          <div class="route-header">
+            <span class="route-badge adm">ADM</span>
+            <span class="route-status" id="routeStatus-adm-01">Livre</span>
+          </div>
+          <h4>ROTA ADM 01</h4>
+          <p>Rota administrativa principal</p>
+          <div class="route-info">
+            <span><i class="fas fa-clock"></i> 45 min</span>
+            <span><i class="fas fa-map-pin"></i> 12 paradas</span>
+          </div>
+          <button class="btn-open-route" onclick="openRouteMap('adm-01')">
+            <i class="fas fa-map-marked-alt"></i> Abrir no Maps
+          </button>
+        </div>
+        
+        <!-- Rota ADM 02 -->
+        <div class="route-card" onclick="selectRoute('adm-02')">
+          <div class="route-header">
+            <span class="route-badge adm">ADM</span>
+            <span class="route-status" id="routeStatus-adm-02">Livre</span>
+          </div>
+          <h4>ROTA ADM 02</h4>
+          <p>Rota administrativa secundária</p>
+          <div class="route-info">
+            <span><i class="fas fa-clock"></i> 30 min</span>
+            <span><i class="fas fa-map-pin"></i> 8 paradas</span>
+          </div>
+          <button class="btn-open-route" onclick="openRouteMap('adm-02')">
+            <i class="fas fa-map-marked-alt"></i> Abrir no Maps
+          </button>
+        </div>
+        
+        <!-- Rota 01 -->
+        <div class="route-card" onclick="selectRoute('01')">
+          <div class="route-header">
+            <span class="route-badge operacional">OP</span>
+            <span class="route-status" id="routeStatus-01">Livre</span>
+          </div>
+          <h4>ROTA 01</h4>
+          <p>Rota operacional principal</p>
+          <div class="route-info">
+            <span><i class="fas fa-clock"></i> 2h 15min</span>
+            <span><i class="fas fa-map-pin"></i> 25 paradas</span>
+          </div>
+          <button class="btn-open-route" onclick="openRouteMap('01')">
+            <i class="fas fa-map-marked-alt"></i> Abrir no Maps
+          </button>
+        </div>
+        
+        <!-- Rota 02 -->
+        <div class="route-card" onclick="selectRoute('02')">
+          <div class="route-header">
+            <span class="route-badge operacional">OP</span>
+            <span class="route-status" id="routeStatus-02">Livre</span>
+          </div>
+          <h4>ROTA 02</h4>
+          <p>Rota operacional secundária</p>
+          <div class="route-info">
+            <span><i class="fas fa-clock"></i> 1h 45min</span>
+            <span><i class="fas fa-map-pin"></i> 18 paradas</span>
+          </div>
+          <button class="btn-open-route" onclick="openRouteMap('02')">
+            <i class="fas fa-map-marked-alt"></i> Abrir no Maps
+          </button>
+        </div>
+        
+        <!-- Rota 03 -->
+        <div class="route-card" onclick="selectRoute('03')">
+          <div class="route-header">
+            <span class="route-badge operacional">OP</span>
+            <span class="route-status" id="routeStatus-03">Livre</span>
+          </div>
+          <h4>ROTA 03</h4>
+          <p>Rota operacional terciária</p>
+          <div class="route-info">
+            <span><i class="fas fa-clock"></i> 3h 00min</span>
+            <span><i class="fas fa-map-pin"></i> 32 paradas</span>
+          </div>
+          <button class="btn-open-route" onclick="openRouteMap('03')">
+            <i class="fas fa-map-marked-alt"></i> Abrir no Maps
+          </button>
+        </div>
+        
+        <!-- Rota 04 -->
+        <div class="route-card" onclick="selectRoute('04')">
+          <div class="route-header">
+            <span class="route-badge operacional">OP</span>
+            <span class="route-status" id="routeStatus-04">Livre</span>
+          </div>
+          <h4>ROTA 04</h4>
+          <p>Rota operacional quaternária</p>
+          <div class="route-info">
+            <span><i class="fas fa-clock"></i> 2h 30min</span>
+            <span><i class="fas fa-map-pin"></i> 22 paradas</span>
+          </div>
+          <button class="btn-open-route" onclick="openRouteMap('04')">
+            <i class="fas fa-map-marked-alt"></i> Abrir no Maps
+          </button>
+        </div>
+      </div>
+      
+      <div class="selected-route-info" id="selectedRouteInfo" style="display: none;">
+        <h4>Rota Selecionada:</h4>
+        <p id="selectedRouteName">Nenhuma rota selecionada</p>
+        <button class="btn-confirm" onclick="confirmRoute()">
+          <i class="fas fa-check-circle"></i> Confirmar Rota
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal de Feedback -->
+  <div id="feedbackModal" class="modal-back" style="display: none;">
+    <div class="modal feedback-modal">
+      <button class="close" onclick="closeModal('feedbackModal')">✕</button>
+      <h3><i class="fas fa-comment-dots"></i> Feedback</h3>
+      
+      <div class="feedback-tabs">
+        <button class="tab-btn active" onclick="openTab('suggestions')">Sugestões</button>
+        <button class="tab-btn" onclick="openTab('complaints')">Reclamações</button>
+        <button class="tab-btn" onclick="openTab('history')">Histórico</button>
+      </div>
+      
+      <div class="tab-content active" id="suggestions">
+        <div class="form-group">
+          <label for="feedbackType">Tipo:</label>
+          <select id="feedbackType">
+            <option value="improvement">Melhoria no App</option>
+            <option value="route">Sugestão de Rota</option>
+            <option value="process">Melhoria de Processo</option>
+            <option value="other">Outro</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="feedbackTitle">Título:</label>
+          <input type="text" id="feedbackTitle" placeholder="Ex: Sugestão para melhorar rotas">
+        </div>
+        
+        <div class="form-group">
+          <label for="feedbackMessage">Mensagem:</label>
+          <textarea id="feedbackMessage" rows="5" placeholder="Descreva sua sugestão em detalhes..."></textarea>
+        </div>
+        
+        <button class="btn-submit" onclick="submitFeedback()">
+          <i class="fas fa-paper-plane"></i> Enviar Sugestão
+        </button>
+      </div>
+      
+      <div class="tab-content" id="complaints">
+        <div class="form-group">
+          <label for="complaintType">Tipo de Reclamação:</label>
+          <select id="complaintType">
+            <option value="app">Problema no App</option>
+            <option value="schedule">Problema com Escala</option>
+            <option value="payment">Problema Financeiro</option>
+            <option value="vehicle">Problema com Veículo</option>
+            <option value="other">Outro</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="complaintMessage">Descreva o problema:</label>
+          <textarea id="complaintMessage" rows="5" placeholder="Descreva o problema em detalhes..."></textarea>
+        </div>
+        
+        <button class="btn-submit" onclick="submitComplaint()">
+          <i class="fas fa-exclamation-triangle"></i> Enviar Reclamação
+        </button>
+      </div>
+      
+      <div class="tab-content" id="history">
+        <div class="feedback-history">
+          <h4>Seus Feedbacks Anteriores</h4>
+          <div id="feedbackHistory">
+            <p class="empty-feedback">Nenhum feedback enviado ainda</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal de Emergência -->
+  <div id="emergencyModal" class="modal-back" style="display: none;">
+    <div class="modal emergency-modal">
+      <div class="emergency-header">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h3>EMERGÊNCIA</h3>
+      </div>
+      
+      <div class="emergency-options">
+        <button class="emergency-option-btn" onclick="reportEmergency('accident')">
+          <i class="fas fa-car-crash"></i>
+          <span>Acidente</span>
+        </button>
+        
+        <button class="emergency-option-btn" onclick="reportEmergency('breakdown')">
+          <i class="fas fa-tools"></i>
+          <span>Avarias no Veículo</span>
+        </button>
+        
+        <button class="emergency-option-btn" onclick="reportEmergency('health')">
+          <i class="fas fa-heartbeat"></i>
+          <span>Problema de Saúde</span>
+        </button>
+        
+        <button class="emergency-option-btn" onclick="reportEmergency('security')">
+          <i class="fas fa-shield-alt"></i>
+          <span>Problema de Segurança</span>
+        </button>
+      </div>
+      
+      <div class="emergency-form" id="emergencyForm" style="display: none;">
+        <div class="form-group">
+          <label for="emergencyDetails">Descreva a emergência:</label>
+          <textarea id="emergencyDetails" rows="3" placeholder="Descreva o que aconteceu..."></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="emergencyLocation">Localização:</label>
+          <input type="text" id="emergencyLocation" readonly>
+          <button class="btn-small" onclick="getCurrentLocation()">
+            <i class="fas fa-map-marker-alt"></i> Usar Localização Atual
+          </button>
+        </div>
+        
+        <div class="emergency-actions">
+          <button class="btn-cancel" onclick="cancelEmergency()">
+            Cancelar
+          </button>
+          <button class="btn-confirm-emergency" onclick="confirmEmergency()">
+            <i class="fas fa-bell"></i> Enviar Alerta
+          </button>
+        </div>
+      </div>
+      
+      <div class="emergency-contacts">
+        <h4>Contatos de Emergência</h4>
+        <div class="contact-item">
+          <i class="fas fa-phone"></i>
+          <div>
+            <strong>Central de Emergência</strong>
+            <p>(93) 9205-9914</p>
+          </div>
+          <button class="btn-call" onclick="callEmergency('9392059914')">
+            Ligar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal de Escala -->
+  <div id="scheduleModal" class="modal-back" style="display: none;">
+    <div class="modal schedule-modal">
+      <button class="close" onclick="closeModal('scheduleModal')">✕</button>
+      <h3><i class="fas fa-calendar-alt"></i> Minha Escala</h3>
+      
+      <div class="schedule-filter">
+        <select id="scheduleMonth" onchange="loadSchedule()">
+          <option value="0">Janeiro</option>
+          <option value="1">Fevereiro</option>
+          <option value="2">Março</option>
+          <option value="3">Abril</option>
+          <option value="4">Maio</option>
+          <option value="5">Junho</option>
+          <option value="6">Julho</option>
+          <option value="7">Agosto</option>
+          <option value="8">Setembro</option>
+          <option value="9">Outubro</option>
+          <option value="10">Novembro</option>
+          <option value="11">Dezembro</option>
+        </select>
+        
+        <select id="scheduleYear" onchange="loadSchedule()">
+          <option value="2023">2023</option>
+          <option value="2024" selected>2024</option>
+        </select>
+      </div>
+      
+      <div class="schedule-calendar">
+        <div class="calendar-header">
+          <button class="calendar-nav" onclick="prevMonth()"><i class="fas fa-chevron-left"></i></button>
+          <h4 id="currentMonthYear">Setembro 2024</h4>
+          <button class="calendar-nav" onclick="nextMonth()"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        
+        <div class="calendar-grid" id="calendarGrid">
+          <!-- Dias serão gerados via JavaScript -->
+        </div>
+      </div>
+      
+      <div class="schedule-details">
+        <h4>Detalhes da Escala</h4>
+        <div id="scheduleDetails">
+          <p class="empty-schedule">Selecione um dia para ver os detalhes</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="app.js"></script>
+  <script>
+    // Inicializar página do motorista
+    document.addEventListener('DOMContentLoaded', function() {
+      // Mostrar matrícula
+      const matricula = localStorage.getItem('driver_matricula') || '---';
+      document.getElementById('matriculaDisplay').textContent = matricula;
+      
+      // Inicializar funcionalidades
+      initDriverPage();
+      loadWeather();
+      loadDriverData();
+      
+      // Verificar localização
+      checkLocationPermission();
+      
+      // Atualizar status de localização
+      updateLocationStatus();
+      
+      // Carregar notificações
+      loadNotices();
+      
+      // Inicializar tema escuro
+      initDarkMode();
+    });
+    
+    function initDriverPage() {
+      console.log('Página do motorista inicializada');
+    }
+    
+    function openControlForm() {
+      openModal('controlModal');
+      loadControlHistory();
+    }
+    
+    function openNotices() {
+      openModal('noticesModal');
+    }
+    
+    function openRouteSelection() {
+      openModal('routeModal');
+      checkRouteStatus();
+    }
+    
+    function openSchedule() {
+      openModal('scheduleModal');
+      loadSchedule();
+    }
+    
+    function openFeedback() {
+      openModal('feedbackModal');
+    }
+    
+    function openEmergencyModal() {
+      openModal('emergencyModal');
+    }
+    
+    function openSupport() {
+      window.open('https://wa.me/559392059914?text=Olá,%20preciso%20de%20suporte%20no%20app%20AC%20Transporte', '_blank');
+    }
+    
+    function toggleLocationSharing() {
+      const toggle = document.getElementById('locationToggle');
+      const isSharing = toggle.checked;
+      
+      if (isSharing) {
+        startLocationSharing();
+      } else {
+        stopLocationSharing();
+      }
+    }
+    
+    function startLocationSharing() {
+      if ("geolocation" in navigator) {
+        showNotification('success', 'Compartilhamento de localização ativado');
+        
+        // Atualizar status
+        document.getElementById('sharingStatus').textContent = 'Ativo';
+        document.getElementById('locationIndicator').className = 'indicator active';
+        
+        // Iniciar atualização periódica
+        startLocationUpdates();
+      } else {
+        showNotification('error', 'Seu navegador não suporta geolocalização');
+        document.getElementById('locationToggle').checked = false;
+      }
+    }
+    
+    function stopLocationSharing() {
+      showNotification('info', 'Compartilhamento de localização desativado');
+      document.getElementById('sharingStatus').textContent = 'Desativado';
+      document.getElementById('locationIndicator').className = 'indicator';
+    }
+    
+    function shareMyLocation() {
+      document.getElementById('locationToggle').checked = true;
+      startLocationSharing();
+    }
+    
+    function selectRoute(routeId) {
+      // Marcar rota como selecionada
+      document.querySelectorAll('.route-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+      
+      event.currentTarget.classList.add('selected');
+      
+      // Mostrar info da rota selecionada
+      const routeName = event.currentTarget.querySelector('h4').textContent;
+      document.getElementById('selectedRouteName').textContent = routeName;
+      document.getElementById('selectedRouteInfo').style.display = 'block';
+      
+      // Salvar rota selecionada
+      localStorage.setItem('selected_route', routeId);
+    }
+    
+    function openRouteMap(routeId) {
+      const routes = {
+        'adm-01': 'https://www.google.com/maps/d/u/1/edit?mid=18BCgBpobp1Olzmzy0RnPCUEd7Vnkc5s&usp=sharing',
+        'adm-02': 'https://www.google.com/maps/d/u/1/edit?mid=1WxbIX8nw0xyGBLMvvi1SF3DRuwmZ5oM&usp=sharing',
+        '01': 'https://www.google.com/maps/d/u/1/edit?mid=1jCfFxq1ZwecS2IcHy7xGFLLgttsM-RQ&usp=sharing',
+        '02': 'https://www.google.com/maps/d/u/1/edit?mid=1LCvNJxWBbZ_chpbdn_lk_Dm6NPA194g&usp=sharing',
+        '03': 'https://www.google.com/maps/d/u/1/edit?mid=1bdwkrClh5AZml0mnDGlOzYcaR4w1BL0&usp=sharing',
+        '04': 'https://www.google.com/maps/d/u/1/edit?mid=1ejibzdZkhX2QLnP9YgvvHdQpZELFvXo&usp=sharing'
+      };
+      
+      window.open(routes[routeId], '_blank');
+    }
+    
+    function confirmRoute() {
+      const selectedRoute = localStorage.getItem('selected_route');
+      if (selectedRoute) {
+        showNotification('success', 'Rota confirmada com sucesso!');
+        document.getElementById('currentRoute').textContent = `Rota ${selectedRoute.toUpperCase()} selecionada`;
+        closeModal('routeModal');
+        
+        // Aqui você salvaria no Firebase
+        saveSelectedRoute(selectedRoute);
+      } else {
+        showNotification('error', 'Selecione uma rota primeiro');
+      }
+    }
+    
+    function recordEntry() {
+      const now = new Date();
+      const time = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const date = now.toLocaleDateString('pt-BR');
+      
+      showNotification('success', `Entrada registrada às ${time}`);
+      document.getElementById('lastControlTime').textContent = `Último: Entrada ${time}`;
+      
+      // Salvar no histórico
+      saveControlRecord('entry', time, date);
+    }
+    
+    function recordExit() {
+      const now = new Date();
+      const time = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const date = now.toLocaleDateString('pt-BR');
+      
+      showNotification('success', `Saída registrada às ${time}`);
+      document.getElementById('lastControlTime').textContent = `Último: Saída ${time}`;
+      
+      // Salvar no histórico
+      saveControlRecord('exit', time, date);
+    }
+    
+    function loadWeather() {
+      // Simulação de dados de clima
+      setTimeout(() => {
+        document.getElementById('currentTemp').textContent = '28°C';
+        document.getElementById('weatherDesc').textContent = 'Parcialmente nublado';
+        document.getElementById('weatherLocation').textContent = 'Santarém, PA';
+        document.getElementById('weatherIcon').innerHTML = '<i class="fas fa-cloud-sun"></i>';
+        document.getElementById('weatherSection').style.display = 'block';
+      }, 1000);
+    }
+    
+    function loadDriverData() {
+      // Carregar dados do motorista do Firebase/localStorage
+      const driverData = {
+        matricula: localStorage.getItem('driver_matricula'),
+        name: 'Motorista ' + localStorage.getItem('driver_matricula'),
+        lastControl: localStorage.getItem('last_control') || 'Não registrado',
+        nextSchedule: 'Amanhã, 08:00'
+      };
+      
+      document.getElementById('lastControlTime').textContent = `Último: ${driverData.lastControl}`;
+      document.getElementById('nextSchedule').textContent = `Próximo: ${driverData.nextSchedule}`;
+    }
+    
+    function logout() {
+      if (confirm('Deseja sair da conta?')) {
+        localStorage.removeItem('driver_matricula');
+        localStorage.removeItem('user_profile');
+        window.location.href = 'index.html';
+      }
+    }
+    
+    function goBack() {
+      window.history.back();
+    }
+  </script>
+</body>
+</html>

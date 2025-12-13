@@ -1,267 +1,299 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AC Transporte - Selecione seu Perfil</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="assets/logo.jpg">
-  
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
-  <script src="firebase-config.js"></script>
-  <script src="app.js" defer></script>
-  
-  <!-- Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- Editor Rich Text -->
-  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-  <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AC Transporte - Portal</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="assets/logo.jpg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="select-profile-page">
-  <div class="container">
-    <!-- Logo e Título -->
-    <div class="logo-header">
-      <img src="assets/logo.jpg" alt="AC Parceria" class="main-logo">
-      <h1>AC Parceria e Terraplenagem</h1>
-      <p class="subtitle">Portal de Transporte - Selecione seu perfil</p>
+<body>
+    <!-- Tela de Carregamento -->
+    <div id="loading" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <p>Carregando AC Transporte...</p>
     </div>
-    
-    <!-- Cards de Seleção de Perfil -->
-    <div class="profile-selection">
-      <!-- Motorista -->
-      <div class="profile-card" onclick="selectProfile('motorista')" data-animation="pulse">
-        <div class="profile-icon driver">
-          <i class="fas fa-bus"></i>
-        </div>
-        <h2>Motorista</h2>
-        <p>Controle de veículos, rotas, escala e localização em tempo real</p>
-        <div class="profile-features">
-          <span><i class="fas fa-check"></i> Registrar entrada/saída</span>
-          <span><i class="fas fa-check"></i> Seguir rotas</span>
-          <span><i class="fas fa-check"></i> Compartilhar localização</span>
-          <span><i class="fas fa-check"></i> Ver escala</span>
-        </div>
-        <button class="btn-select" onclick="selectProfile('motorista')">Entrar como Motorista</button>
-      </div>
-      
-      <!-- Passageiro -->
-      <div class="profile-card" onclick="selectProfile('passageiro')" data-animation="pulse">
-        <div class="profile-icon passenger">
-          <i class="fas fa-users"></i>
-        </div>
-        <h2>Passageiro</h2>
-        <p>Acompanhe sua rota e veja a localização do motorista em tempo real</p>
-        <div class="profile-features">
-          <span><i class="fas fa-check"></i> Ver rotas disponíveis</span>
-          <span><i class="fas fa-check"></i> Acompanhar motorista</span>
-          <span><i class="fas fa-check"></i> Receber avisos</span>
-          <span><i class="fas fa-check"></i> Enviar feedback</span>
-        </div>
-        <button class="btn-select" onclick="selectProfile('passageiro')">Entrar como Passageiro</button>
-      </div>
-      
-      <!-- Administrador -->
-      <div class="profile-card" onclick="selectProfile('admin')" data-animation="pulse">
-        <div class="profile-icon admin">
-          <i class="fas fa-user-cog"></i>
-        </div>
-        <h2>Administrador</h2>
-        <p>Gerencie rotas, avisos, escalas e monitore toda a operação</p>
-        <div class="profile-features">
-          <span><i class="fas fa-check"></i> Gerenciar avisos</span>
-          <span><i class="fas fa-check"></i> Ver localização em tempo real</span>
-          <span><i class="fas fa-check"></i> Gerenciar escalas</span>
-          <span><i class="fas fa-check"></i> Enviar notificações</span>
-        </div>
-        <button class="btn-select" onclick="selectProfile('admin')">Entrar como Administrador</button>
-      </div>
-    </div>
-    
-    <!-- Modal de Login para Motorista e Admin -->
-    <div id="loginModal" class="modal-back" style="display: none;">
-      <div class="modal login-modal">
-        <button class="close" onclick="closeModal('loginModal')">✕</button>
-        <h3 id="modalTitle">Acesso</h3>
-        
-        <!-- Motorista Login -->
-        <div id="driverLoginForm" style="display: none;">
-          <div class="form-group">
-            <label for="matricula"><i class="fas fa-id-card"></i> Matrícula</label>
-            <input type="text" id="matricula" placeholder="Digite sua matrícula" required>
-          </div>
-          <div class="form-group">
-            <label><i class="fas fa-map-marker-alt"></i> Localização</label>
-            <div class="location-permission">
-              <p>Para usar todas as funcionalidades, precisamos da sua localização:</p>
-              <div class="permission-options">
-                <button class="btn-permission" onclick="requestLocationPermission('allow')">
-                  <i class="fas fa-check-circle"></i> Permitir Localização
-                </button>
-                <button class="btn-permission secondary" onclick="requestLocationPermission('deny')">
-                  <i class="fas fa-times-circle"></i> Não Permitir
-                </button>
-              </div>
+
+    <!-- Conteúdo Principal -->
+    <div class="container" id="mainContent" style="display: none;">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="logo-container">
+                <img src="assets/logo.jpg" alt="AC Parceria Logo" class="logo" 
+                     onerror="this.src='https://via.placeholder.com/150/8B0000/FFFFFF?text=AC+Logo'">
+                <div>
+                    <h1>AC Parceria e Terraplenagem</h1>
+                    <p class="subtitle">Portal de Transporte</p>
+                </div>
             </div>
-          </div>
-          <button class="btn-login" onclick="loginDriver()">
-            <i class="fas fa-sign-in-alt"></i> Acessar Área do Motorista
-          </button>
-        </div>
-        
-        <!-- Admin Login -->
-        <div id="adminLoginForm" style="display: none;">
-          <div class="form-group">
-            <label for="adminLogin"><i class="fas fa-user"></i> Login</label>
-            <input type="text" id="adminLogin" placeholder="Digite o login" required>
-          </div>
-          <div class="form-group">
-            <label for="adminPassword"><i class="fas fa-lock"></i> Senha</label>
-            <input type="password" id="adminPassword" placeholder="Digite a senha" required>
-          </div>
-          <button class="btn-login" onclick="loginAdmin()">
-            <i class="fas fa-sign-in-alt"></i> Acessar Painel Admin
-          </button>
-          <div class="login-info">
-            <p><strong>Login padrão:</strong> Admin</p>
-            <p><strong>Senha padrão:</strong> 050370</p>
-          </div>
-        </div>
-        
-        <!-- Passageiro - Acesso Direto -->
-        <div id="passengerAccess" style="display: none;">
-          <div class="access-direct">
-            <i class="fas fa-check-circle success-icon"></i>
-            <h4>Acesso Direto</h4>
-            <p>Como passageiro, você tem acesso direto ao sistema.</p>
-            <button class="btn-login" onclick="accessPassenger()">
-              <i class="fas fa-arrow-right"></i> Continuar para Passageiro
-            </button>
-          </div>
-        </div>
-      </div>
+        </header>
+
+        <!-- Avatar e Boas-Vindas -->
+        <section class="welcome-section">
+            <div class="avatar-container">
+                <img src="assets/avatar.png" alt="Avatar AC" class="avatar"
+                     onerror="this.src='https://via.placeholder.com/200/8B0000/FFFFFF?text=AC'">
+            </div>
+            <div class="welcome-text">
+                <h2>Bem-vindo ao Portal de Transporte</h2>
+                <p>Sistema completo para gestão de rotas, motoristas e passageiros</p>
+                
+                <div class="info-card">
+                    <i class="fas fa-clock"></i>
+                    <div>
+                        <h4>Importante</h4>
+                        <p>Controle de veículo deve ser preenchido <strong>2× ao dia</strong> (entrada e saída)</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Seleção de Perfil -->
+        <section class="profile-section">
+            <h3><i class="fas fa-user-circle"></i> Selecione seu perfil:</h3>
+            
+            <div class="profile-cards">
+                <!-- Motorista -->
+                <div class="profile-card" onclick="selectProfile('motorista')">
+                    <div class="profile-icon driver">
+                        <i class="fas fa-bus"></i>
+                    </div>
+                    <h4>Motorista</h4>
+                    <p>Controle de rotas e veículos</p>
+                    <ul class="profile-features">
+                        <li><i class="fas fa-check"></i> Registrar entrada/saída</li>
+                        <li><i class="fas fa-check"></i> Seguir rotas</li>
+                        <li><i class="fas fa-check"></i> Ver escala</li>
+                    </ul>
+                </div>
+
+                <!-- Passageiro -->
+                <div class="profile-card" onclick="selectProfile('passageiro')">
+                    <div class="profile-icon passenger">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h4>Passageiro</h4>
+                    <p>Acompanhar rotas e motoristas</p>
+                    <ul class="profile-features">
+                        <li><i class="fas fa-check"></i> Ver rotas disponíveis</li>
+                        <li><i class="fas fa-check"></i> Acompanhar motorista</li>
+                        <li><i class="fas fa-check"></i> Receber avisos</li>
+                    </ul>
+                </div>
+
+                <!-- Administrador -->
+                <div class="profile-card" onclick="selectProfile('admin')">
+                    <div class="profile-icon admin">
+                        <i class="fas fa-user-cog"></i>
+                    </div>
+                    <h4>Administrador</h4>
+                    <p>Gerenciar todo o sistema</p>
+                    <ul class="profile-features">
+                        <li><i class="fas fa-check"></i> Gerenciar avisos</li>
+                        <li><i class="fas fa-check"></i> Ver localizações</li>
+                        <li><i class="fas fa-check"></i> Gerenciar escalas</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Instruções de Instalação -->
+        <section class="install-section">
+            <div class="install-card">
+                <h4><i class="fas fa-mobile-alt"></i> Instalar como App</h4>
+                <p>Para melhor experiência, instale este portal na tela inicial do seu celular:</p>
+                
+                <div class="install-steps">
+                    <div class="step">
+                        <span class="step-number">1</span>
+                        <p>Toque em <strong>Compartilhar</strong> (📤)</p>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">2</span>
+                        <p>Selecione <strong>Adicionar à Tela Inicial</strong></p>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">3</span>
+                        <p>Toque em <strong>Adicionar</strong></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Botão de WhatsApp Flutuante -->
+        <a href="https://wa.me/559392059914?text=Olá,%20preciso%20de%20suporte%20no%20app%20AC%20Transporte" 
+           class="whatsapp-float" target="_blank">
+            <i class="fab fa-whatsapp"></i>
+        </a>
     </div>
-    
-    <!-- Nota Informativa -->
-    <div class="info-note">
-      <p><i class="fas fa-info-circle"></i> <strong>Importante:</strong> Para melhor experiência, instale este app na tela inicial do seu celular.</p>
+
+    <!-- Modal de Login -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h3 id="modalTitle">Acesso ao Sistema</h3>
+            
+            <!-- Formulário Motorista -->
+            <div id="driverForm" class="login-form">
+                <div class="form-group">
+                    <label for="matricula"><i class="fas fa-id-card"></i> Matrícula</label>
+                    <input type="text" id="matricula" placeholder="Digite sua matrícula" required>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-map-marker-alt"></i> Localização</label>
+                    <div class="location-request">
+                        <p>Precisamos da sua localização para as rotas</p>
+                        <div class="location-buttons">
+                            <button class="btn-primary" onclick="allowLocation()">
+                                <i class="fas fa-check"></i> Permitir
+                            </button>
+                            <button class="btn-secondary" onclick="denyLocation()">
+                                <i class="fas fa-times"></i> Negar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn-submit" onclick="loginDriver()">
+                    <i class="fas fa-sign-in-alt"></i> Entrar como Motorista
+                </button>
+            </div>
+
+            <!-- Formulário Admin -->
+            <div id="adminForm" class="login-form" style="display: none;">
+                <div class="form-group">
+                    <label for="adminUser"><i class="fas fa-user"></i> Usuário</label>
+                    <input type="text" id="adminUser" placeholder="Digite o usuário" value="Admin">
+                </div>
+                
+                <div class="form-group">
+                    <label for="adminPass"><i class="fas fa-lock"></i> Senha</label>
+                    <input type="password" id="adminPass" placeholder="Digite a senha" value="050370">
+                </div>
+                
+                <button class="btn-submit" onclick="loginAdmin()">
+                    <i class="fas fa-sign-in-alt"></i> Entrar como Administrador
+                </button>
+                
+                <div class="login-info">
+                    <p><strong>Usuário padrão:</strong> Admin</p>
+                    <p><strong>Senha padrão:</strong> 050370</p>
+                </div>
+            </div>
+
+            <!-- Acesso Passageiro -->
+            <div id="passengerForm" class="login-form" style="display: none;">
+                <div class="direct-access">
+                    <i class="fas fa-check-circle"></i>
+                    <h4>Acesso Direto</h4>
+                    <p>Como passageiro, você tem acesso imediato ao sistema.</p>
+                    <button class="btn-submit" onclick="accessPassenger()">
+                        <i class="fas fa-arrow-right"></i> Continuar como Passageiro
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-  
-  <script>
-    let selectedProfile = '';
-    let driverLocationAllowed = false;
-    
-    function selectProfile(profile) {
-      selectedProfile = profile;
-      document.getElementById('modalTitle').textContent = 
-        profile === 'motorista' ? 'Acesso Motorista' :
-        profile === 'admin' ? 'Acesso Administrador' : 'Acesso Passageiro';
-      
-      // Mostrar form correto
-      document.getElementById('driverLoginForm').style.display = 
-        profile === 'motorista' ? 'block' : 'none';
-      document.getElementById('adminLoginForm').style.display = 
-        profile === 'admin' ? 'block' : 'none';
-      document.getElementById('passengerAccess').style.display = 
-        profile === 'passageiro' ? 'block' : 'none';
-      
-      openModal('loginModal');
-    }
-    
-    function requestLocationPermission(action) {
-      if (action === 'allow') {
-        if ("geolocation" in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              driverLocationAllowed = true;
-              showNotification('success', 'Localização permitida com sucesso!');
-              saveDriverLocation(position);
-            },
-            (error) => {
-              driverLocationAllowed = false;
-              showNotification('warning', 'Permissão de localização negada.');
-            }
-          );
+
+    <script src="app.js"></script>
+    <script>
+        // Inicializar quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Esconder loading após 1 segundo
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                
+                // Verificar se já tem perfil salvo
+                const savedProfile = localStorage.getItem('userProfile');
+                if (savedProfile) {
+                    selectProfile(savedProfile);
+                }
+            }, 1000);
+        });
+
+        let currentProfile = '';
+
+        function selectProfile(profile) {
+            currentProfile = profile;
+            
+            // Atualizar título do modal
+            const titles = {
+                'motorista': 'Acesso Motorista',
+                'admin': 'Acesso Administrador',
+                'passageiro': 'Acesso Passageiro'
+            };
+            
+            document.getElementById('modalTitle').textContent = titles[profile];
+            
+            // Mostrar formulário correto
+            document.getElementById('driverForm').style.display = 
+                profile === 'motorista' ? 'block' : 'none';
+            document.getElementById('adminForm').style.display = 
+                profile === 'admin' ? 'block' : 'none';
+            document.getElementById('passengerForm').style.display = 
+                profile === 'passageiro' ? 'block' : 'none';
+            
+            // Abrir modal
+            document.getElementById('loginModal').style.display = 'block';
         }
-      } else {
-        driverLocationAllowed = false;
-        showNotification('info', 'Localização não será usada.');
-      }
-    }
-    
-    function saveDriverLocation(position) {
-      // Salvar localização no Firebase
-      const driverData = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        matricula: document.getElementById('matricula').value
-      };
-      
-      // Aqui você salvaria no Firebase
-      console.log('Localização salva:', driverData);
-    }
-    
-    function loginDriver() {
-      const matricula = document.getElementById('matricula').value;
-      if (!matricula) {
-        showNotification('error', 'Digite sua matrícula!');
-        return;
-      }
-      
-      // Salvar dados do motorista
-      localStorage.setItem('driver_matricula', matricula);
-      localStorage.setItem('driver_location_allowed', driverLocationAllowed);
-      localStorage.setItem('user_profile', 'motorista');
-      
-      showNotification('success', 'Acesso permitido! Redirecionando...');
-      setTimeout(() => {
-        window.location.href = 'motorista.html';
-      }, 1500);
-    }
-    
-    function loginAdmin() {
-      const login = document.getElementById('adminLogin').value;
-      const password = document.getElementById('adminPassword').value;
-      
-      if (login === 'Admin' && password === '050370') {
-        localStorage.setItem('user_profile', 'admin');
-        showNotification('success', 'Acesso administrador concedido!');
-        setTimeout(() => {
-          window.location.href = 'admin.html';
-        }, 1500);
-      } else {
-        showNotification('error', 'Login ou senha incorretos!');
-      }
-    }
-    
-    function accessPassenger() {
-      localStorage.setItem('user_profile', 'passageiro');
-      showNotification('success', 'Redirecionando para área do passageiro...');
-      setTimeout(() => {
-        window.location.href = 'passageiro.html';
-      }, 1500);
-    }
-    
-    function openModal(modalId) {
-      document.getElementById(modalId).style.display = 'flex';
-    }
-    
-    function closeModal(modalId) {
-      document.getElementById(modalId).style.display = 'none';
-    }
-    
-    function showNotification(type, message) {
-      // Implementar notificação
-      alert(message); // Temporário
-    }
-  </script>
+
+        function closeModal() {
+            document.getElementById('loginModal').style.display = 'none';
+        }
+
+        function allowLocation() {
+            alert('Localização permitida!');
+            // Aqui você implementaria a geolocalização real
+        }
+
+        function denyLocation() {
+            alert('Localização negada. Algumas funcionalidades não estarão disponíveis.');
+        }
+
+        function loginDriver() {
+            const matricula = document.getElementById('matricula').value;
+            if (!matricula) {
+                alert('Por favor, digite sua matrícula!');
+                return;
+            }
+            
+            localStorage.setItem('userProfile', 'motorista');
+            localStorage.setItem('driverMatricula', matricula);
+            
+            alert(`Bem-vindo, motorista ${matricula}!`);
+            window.location.href = 'motorista.html';
+        }
+
+        function loginAdmin() {
+            const user = document.getElementById('adminUser').value;
+            const pass = document.getElementById('adminPass').value;
+            
+            if (user === 'Admin' && pass === '050370') {
+                localStorage.setItem('userProfile', 'admin');
+                alert('Acesso administrativo concedido!');
+                window.location.href = 'admin.html';
+            } else {
+                alert('Usuário ou senha incorretos!');
+            }
+        }
+
+        function accessPassenger() {
+            localStorage.setItem('userProfile', 'passageiro');
+            alert('Acesso concedido!');
+            window.location.href = 'passageiro.html';
+        }
+
+        // Fechar modal ao clicar fora
+        window.onclick = function(event) {
+            const modal = document.getElementById('loginModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
 </body>
 </html>

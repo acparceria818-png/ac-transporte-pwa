@@ -1,299 +1,100 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AC Transporte - Portal</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="assets/logo.jpg">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Portal de Transporte da AC Parceria e Terraplenagem">
+  <meta name="theme-color" content="#b00000" />
+  <title>AC Parceria - Portal de Transporte</title>
+  
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="logo.jpg" type="image/jpeg">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet CSS (Mapas Integrados) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- SweetAlert2 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  
+  <!-- Toastify -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
 </head>
 <body>
-    <!-- Tela de Carregamento -->
-    <div id="loading" class="loading-screen">
-        <div class="loading-spinner"></div>
-        <p>Carregando AC Transporte...</p>
+
+<header>
+  <img src="logo.jpg" alt="AC Logo" class="logo" loading="lazy" />
+  <h1>AC PARCERIA E TERRAPLENAGEM — Portal de Transporte</h1>
+  <div class="user-status" id="userStatus" style="display:none">
+    <span id="userName"></span>
+    <button class="logout-btn" onclick="app.logout()" title="Sair">
+      <i class="fas fa-sign-out-alt"></i>
+    </button>
+  </div>
+</header>
+
+<div class="top-actions container">
+  <div>
+    <button class="icon-btn" id="installBtn" style="display:none" aria-label="Instalar aplicativo">
+      <i class="fas fa-download"></i> Instalar
+    </button>
+  </div>
+  <div>
+    <button class="icon-btn" id="darkToggle" title="Alternar tema" aria-label="Alternar tema claro/escuro">
+      <i class="fas fa-moon"></i>
+    </button>
+    <span class="connection-status" id="connectionStatus" title="Status da conexão">
+      <i class="fas fa-circle"></i>
+    </span>
+    <button class="icon-btn" id="avisosBtn" onclick="ui.mostrarAvisos()" title="Avisos">
+      <i class="fas fa-bell"></i>
+      <span class="badge" id="avisosCount" style="display:none">0</span>
+    </button>
+  </div>
+</div>
+
+<main class="container" id="mainContent">
+  <!-- Telas serão carregadas dinamicamente via JavaScript -->
+</main>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay" style="display:none">
+  <div class="loading-content">
+    <div class="spinner">
+      <div class="double-bounce1"></div>
+      <div class="double-bounce2"></div>
     </div>
+    <p id="loadingText">Carregando...</p>
+  </div>
+</div>
 
-    <!-- Conteúdo Principal -->
-    <div class="container" id="mainContent" style="display: none;">
-        <!-- Header -->
-        <header class="main-header">
-            <div class="logo-container">
-                <img src="assets/logo.jpg" alt="AC Parceria Logo" class="logo" 
-                     onerror="this.src='https://via.placeholder.com/150/8B0000/FFFFFF?text=AC+Logo'">
-                <div>
-                    <h1>AC Parceria e Terraplenagem</h1>
-                    <p class="subtitle">Portal de Transporte</p>
-                </div>
-            </div>
-        </header>
+<!-- Offline Banner -->
+<div id="offlineBanner" class="offline-banner" style="display:none">
+  <i class="fas fa-wifi-slash"></i>
+  <span>Você está offline. Algumas funcionalidades podem não estar disponíveis.</span>
+</div>
 
-        <!-- Avatar e Boas-Vindas -->
-        <section class="welcome-section">
-            <div class="avatar-container">
-                <img src="assets/avatar.png" alt="Avatar AC" class="avatar"
-                     onerror="this.src='https://via.placeholder.com/200/8B0000/FFFFFF?text=AC'">
-            </div>
-            <div class="welcome-text">
-                <h2>Bem-vindo ao Portal de Transporte</h2>
-                <p>Sistema completo para gestão de rotas, motoristas e passageiros</p>
-                
-                <div class="info-card">
-                    <i class="fas fa-clock"></i>
-                    <div>
-                        <h4>Importante</h4>
-                        <p>Controle de veículo deve ser preenchido <strong>2× ao dia</strong> (entrada e saída)</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+<!-- Scripts -->
+<script type="module" src="firebase.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 
-        <!-- Seleção de Perfil -->
-        <section class="profile-section">
-            <h3><i class="fas fa-user-circle"></i> Selecione seu perfil:</h3>
-            
-            <div class="profile-cards">
-                <!-- Motorista -->
-                <div class="profile-card" onclick="selectProfile('motorista')">
-                    <div class="profile-icon driver">
-                        <i class="fas fa-bus"></i>
-                    </div>
-                    <h4>Motorista</h4>
-                    <p>Controle de rotas e veículos</p>
-                    <ul class="profile-features">
-                        <li><i class="fas fa-check"></i> Registrar entrada/saída</li>
-                        <li><i class="fas fa-check"></i> Seguir rotas</li>
-                        <li><i class="fas fa-check"></i> Ver escala</li>
-                    </ul>
-                </div>
+<!-- Módulos do Sistema -->
+<script type="module" src="js/utils.js"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module" src="js/db.js"></script>
+<script type="module" src="js/map-integration.js"></script>
+<script type="module" src="js/gps-tracker.js"></script>
+<script type="module" src="js/ui-components.js"></script>
+<script type="module" src="js/admin-panel.js"></script>
+<script type="module" src="js/app.js"></script>
 
-                <!-- Passageiro -->
-                <div class="profile-card" onclick="selectProfile('passageiro')">
-                    <div class="profile-icon passenger">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <h4>Passageiro</h4>
-                    <p>Acompanhar rotas e motoristas</p>
-                    <ul class="profile-features">
-                        <li><i class="fas fa-check"></i> Ver rotas disponíveis</li>
-                        <li><i class="fas fa-check"></i> Acompanhar motorista</li>
-                        <li><i class="fas fa-check"></i> Receber avisos</li>
-                    </ul>
-                </div>
-
-                <!-- Administrador -->
-                <div class="profile-card" onclick="selectProfile('admin')">
-                    <div class="profile-icon admin">
-                        <i class="fas fa-user-cog"></i>
-                    </div>
-                    <h4>Administrador</h4>
-                    <p>Gerenciar todo o sistema</p>
-                    <ul class="profile-features">
-                        <li><i class="fas fa-check"></i> Gerenciar avisos</li>
-                        <li><i class="fas fa-check"></i> Ver localizações</li>
-                        <li><i class="fas fa-check"></i> Gerenciar escalas</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-
-        <!-- Instruções de Instalação -->
-        <section class="install-section">
-            <div class="install-card">
-                <h4><i class="fas fa-mobile-alt"></i> Instalar como App</h4>
-                <p>Para melhor experiência, instale este portal na tela inicial do seu celular:</p>
-                
-                <div class="install-steps">
-                    <div class="step">
-                        <span class="step-number">1</span>
-                        <p>Toque em <strong>Compartilhar</strong> (📤)</p>
-                    </div>
-                    <div class="step">
-                        <span class="step-number">2</span>
-                        <p>Selecione <strong>Adicionar à Tela Inicial</strong></p>
-                    </div>
-                    <div class="step">
-                        <span class="step-number">3</span>
-                        <p>Toque em <strong>Adicionar</strong></p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Botão de WhatsApp Flutuante -->
-        <a href="https://wa.me/559392059914?text=Olá,%20preciso%20de%20suporte%20no%20app%20AC%20Transporte" 
-           class="whatsapp-float" target="_blank">
-            <i class="fab fa-whatsapp"></i>
-        </a>
-    </div>
-
-    <!-- Modal de Login -->
-    <div id="loginModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal()">&times;</span>
-            <h3 id="modalTitle">Acesso ao Sistema</h3>
-            
-            <!-- Formulário Motorista -->
-            <div id="driverForm" class="login-form">
-                <div class="form-group">
-                    <label for="matricula"><i class="fas fa-id-card"></i> Matrícula</label>
-                    <input type="text" id="matricula" placeholder="Digite sua matrícula" required>
-                </div>
-                
-                <div class="form-group">
-                    <label><i class="fas fa-map-marker-alt"></i> Localização</label>
-                    <div class="location-request">
-                        <p>Precisamos da sua localização para as rotas</p>
-                        <div class="location-buttons">
-                            <button class="btn-primary" onclick="allowLocation()">
-                                <i class="fas fa-check"></i> Permitir
-                            </button>
-                            <button class="btn-secondary" onclick="denyLocation()">
-                                <i class="fas fa-times"></i> Negar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <button class="btn-submit" onclick="loginDriver()">
-                    <i class="fas fa-sign-in-alt"></i> Entrar como Motorista
-                </button>
-            </div>
-
-            <!-- Formulário Admin -->
-            <div id="adminForm" class="login-form" style="display: none;">
-                <div class="form-group">
-                    <label for="adminUser"><i class="fas fa-user"></i> Usuário</label>
-                    <input type="text" id="adminUser" placeholder="Digite o usuário" value="Admin">
-                </div>
-                
-                <div class="form-group">
-                    <label for="adminPass"><i class="fas fa-lock"></i> Senha</label>
-                    <input type="password" id="adminPass" placeholder="Digite a senha" value="050370">
-                </div>
-                
-                <button class="btn-submit" onclick="loginAdmin()">
-                    <i class="fas fa-sign-in-alt"></i> Entrar como Administrador
-                </button>
-                
-                <div class="login-info">
-                    <p><strong>Usuário padrão:</strong> Admin</p>
-                    <p><strong>Senha padrão:</strong> 050370</p>
-                </div>
-            </div>
-
-            <!-- Acesso Passageiro -->
-            <div id="passengerForm" class="login-form" style="display: none;">
-                <div class="direct-access">
-                    <i class="fas fa-check-circle"></i>
-                    <h4>Acesso Direto</h4>
-                    <p>Como passageiro, você tem acesso imediato ao sistema.</p>
-                    <button class="btn-submit" onclick="accessPassenger()">
-                        <i class="fas fa-arrow-right"></i> Continuar como Passageiro
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
-    <script>
-        // Inicializar quando a página carregar
-        document.addEventListener('DOMContentLoaded', function() {
-            // Esconder loading após 1 segundo
-            setTimeout(() => {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
-                
-                // Verificar se já tem perfil salvo
-                const savedProfile = localStorage.getItem('userProfile');
-                if (savedProfile) {
-                    selectProfile(savedProfile);
-                }
-            }, 1000);
-        });
-
-        let currentProfile = '';
-
-        function selectProfile(profile) {
-            currentProfile = profile;
-            
-            // Atualizar título do modal
-            const titles = {
-                'motorista': 'Acesso Motorista',
-                'admin': 'Acesso Administrador',
-                'passageiro': 'Acesso Passageiro'
-            };
-            
-            document.getElementById('modalTitle').textContent = titles[profile];
-            
-            // Mostrar formulário correto
-            document.getElementById('driverForm').style.display = 
-                profile === 'motorista' ? 'block' : 'none';
-            document.getElementById('adminForm').style.display = 
-                profile === 'admin' ? 'block' : 'none';
-            document.getElementById('passengerForm').style.display = 
-                profile === 'passageiro' ? 'block' : 'none';
-            
-            // Abrir modal
-            document.getElementById('loginModal').style.display = 'block';
-        }
-
-        function closeModal() {
-            document.getElementById('loginModal').style.display = 'none';
-        }
-
-        function allowLocation() {
-            alert('Localização permitida!');
-            // Aqui você implementaria a geolocalização real
-        }
-
-        function denyLocation() {
-            alert('Localização negada. Algumas funcionalidades não estarão disponíveis.');
-        }
-
-        function loginDriver() {
-            const matricula = document.getElementById('matricula').value;
-            if (!matricula) {
-                alert('Por favor, digite sua matrícula!');
-                return;
-            }
-            
-            localStorage.setItem('userProfile', 'motorista');
-            localStorage.setItem('driverMatricula', matricula);
-            
-            alert(`Bem-vindo, motorista ${matricula}!`);
-            window.location.href = 'motorista.html';
-        }
-
-        function loginAdmin() {
-            const user = document.getElementById('adminUser').value;
-            const pass = document.getElementById('adminPass').value;
-            
-            if (user === 'Admin' && pass === '050370') {
-                localStorage.setItem('userProfile', 'admin');
-                alert('Acesso administrativo concedido!');
-                window.location.href = 'admin.html';
-            } else {
-                alert('Usuário ou senha incorretos!');
-            }
-        }
-
-        function accessPassenger() {
-            localStorage.setItem('userProfile', 'passageiro');
-            alert('Acesso concedido!');
-            window.location.href = 'passageiro.html';
-        }
-
-        // Fechar modal ao clicar fora
-        window.onclick = function(event) {
-            const modal = document.getElementById('loginModal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        }
-    </script>
 </body>
 </html>
